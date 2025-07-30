@@ -47,10 +47,15 @@ const clothingItems: ClothingItem[] = [
 
 export default function Index() {
   const [isARMode, setIsARMode] = useState(false)
+  const [isPhotoMode, setIsPhotoMode] = useState(false)
   const [selectedItem, setSelectedItem] = useState<ClothingItem | null>(null)
   const [selectedSize, setSelectedSize] = useState('')
   const [selectedColor, setSelectedColor] = useState('')
+  const [uploadedPhoto, setUploadedPhoto] = useState<string | null>(null)
+  const [showPhotoOptions, setShowPhotoOptions] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (isARMode && videoRef.current) {
@@ -66,14 +71,56 @@ export default function Index() {
 
   const startARTryOn = (item: ClothingItem) => {
     setSelectedItem(item)
-    setIsARMode(true)
     setSelectedSize(item.sizes[0])
     setSelectedColor(item.colors[0])
+    setShowPhotoOptions(true)
+  }
+
+  const startLiveAR = () => {
+    setIsARMode(true)
+    setShowPhotoOptions(false)
+  }
+
+  const startPhotoAR = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setUploadedPhoto(e.target?.result as string)
+        setIsPhotoMode(true)
+        setShowPhotoOptions(false)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleCameraCapture = () => {
+    cameraInputRef.current?.click()
+  }
+
+  const handleCameraFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setUploadedPhoto(e.target?.result as string)
+        setIsPhotoMode(true)
+        setShowPhotoOptions(false)
+      }
+      reader.readAsDataURL(file)
+    }
   }
 
   const stopARMode = () => {
     setIsARMode(false)
+    setIsPhotoMode(false)
     setSelectedItem(null)
+    setUploadedPhoto(null)
+    setShowPhotoOptions(false)
     if (videoRef.current && videoRef.current.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream
       stream.getTracks().forEach(track => track.stop())
@@ -98,7 +145,84 @@ export default function Index() {
         </div>
       </header>
 
-      {/* AR Примерочная */}
+      {/* Выбор режима примерки */}
+      {showPhotoOptions && selectedItem && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full">
+            <div className="text-center mb-6">
+              <h3 className="text-xl font-bold mb-2" style={{ fontFamily: 'Montserrat, sans-serif' }}>
+                Выберите способ примерки
+              </h3>
+              <p className="text-muted-foreground text-sm">Как хотите примерить {selectedItem.name}?</p>
+            </div>
+            
+            <div className="space-y-3">
+              <Button 
+                onClick={startLiveAR} 
+                className="w-full h-12 justify-start"
+                variant="outline"
+              >
+                <Icon name="Video" size={20} className="mr-3 text-primary" />
+                <div className="text-left">
+                  <p className="font-semibold">Включить камеру</p>
+                  <p className="text-xs text-muted-foreground">Примерка в реальном времени</p>
+                </div>
+              </Button>
+              
+              <Button 
+                onClick={startPhotoAR} 
+                className="w-full h-12 justify-start"
+                variant="outline"
+              >
+                <Icon name="Image" size={20} className="mr-3 text-accent" />
+                <div className="text-left">
+                  <p className="font-semibold">Выбрать фото</p>
+                  <p className="text-xs text-muted-foreground">Загрузить из галереи</p>
+                </div>
+              </Button>
+              
+              <Button 
+                onClick={handleCameraCapture} 
+                className="w-full h-12 justify-start"
+                variant="outline"
+              >
+                <Icon name="Camera" size={20} className="mr-3 text-secondary" />
+                <div className="text-left">
+                  <p className="font-semibold">Сделать фото</p>
+                  <p className="text-xs text-muted-foreground">Сфотографировать сейчас</p>
+                </div>
+              </Button>
+            </div>
+            
+            <Button 
+              variant="ghost" 
+              onClick={() => setShowPhotoOptions(false)}
+              className="w-full mt-4"
+            >
+              Отмена
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Скрытые input элементы */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileUpload}
+        accept="image/*"
+        className="hidden"
+      />
+      <input
+        type="file"
+        ref={cameraInputRef}
+        onChange={handleCameraFileUpload}
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+      />
+
+      {/* AR Примерочная - Живая камера */}
       {isARMode && selectedItem && (
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center">
           <div className="relative w-full h-full max-w-md mx-auto">
@@ -169,6 +293,102 @@ export default function Index() {
                   <Button className="flex-1 h-9" size="sm">
                     <Icon name="ShoppingCart" size={16} className="mr-1" />
                     В корзину
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={stopARMode} className="h-9">
+                    <Icon name="X" size={16} />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AR Примерочная - Фото режим */}
+      {isPhotoMode && selectedItem && uploadedPhoto && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center">
+          <div className="relative w-full h-full max-w-md mx-auto">
+            <img
+              src={uploadedPhoto}
+              alt="Загруженное фото"
+              className="w-full h-full object-cover"
+            />
+            
+            {/* Виртуальная примерка на фото */}
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                <div className="w-48 h-64 border-2 border-primary/70 rounded-lg bg-primary/20 backdrop-blur-sm flex items-center justify-center">
+                  <div className="text-center text-white">
+                    <Icon name="Shirt" size={40} className="mx-auto mb-2 opacity-80" />
+                    <p className="text-xs opacity-90">{selectedItem.name}</p>
+                    <p className="text-xs opacity-70">{selectedColor} • {selectedSize}</p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Индикатор AR */}
+              <div className="absolute top-4 left-4">
+                <div className="bg-primary/90 px-3 py-1 rounded-full flex items-center gap-2">
+                  <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                  <span className="text-white text-xs font-medium">AR Примерка</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Панель управления для фото режима */}
+            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent pointer-events-auto">
+              <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-4 mb-4">
+                <div className="flex items-center gap-4 mb-3">
+                  <img 
+                    src={selectedItem.image} 
+                    alt={selectedItem.name}
+                    className="w-12 h-12 rounded-lg object-cover"
+                  />
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-sm">{selectedItem.name}</h3>
+                    <p className="text-primary font-bold">{selectedItem.price}</p>
+                  </div>
+                  <Badge variant="secondary" className="text-xs">
+                    На фото
+                  </Badge>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">Размер</label>
+                    <Select value={selectedSize} onValueChange={setSelectedSize}>
+                      <SelectTrigger className="h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {selectedItem.sizes.map(size => (
+                          <SelectItem key={size} value={size}>{size}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">Цвет</label>
+                    <Select value={selectedColor} onValueChange={setSelectedColor}>
+                      <SelectTrigger className="h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {selectedItem.colors.map(color => (
+                          <SelectItem key={color} value={color}>{color}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                <div className="flex gap-2">
+                  <Button className="flex-1 h-9" size="sm">
+                    <Icon name="ShoppingCart" size={16} className="mr-1" />
+                    В корзину
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="h-9">
+                    <Icon name="RefreshCw" size={16} />
                   </Button>
                   <Button variant="outline" size="sm" onClick={stopARMode} className="h-9">
                     <Icon name="X" size={16} />
